@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { sendRegistrationMail } = require("../utils/email");
 
 //Register a new user
 const registerUser = async (req, res, next) => {
@@ -23,6 +24,11 @@ const registerUser = async (req, res, next) => {
     const newUser = await User.create({
       email,
       password,
+    });
+
+    await sendRegistrationMail({
+      to: newUser.email,
+      email: newUser.email,
     });
 
     res.status(201).json({
@@ -67,7 +73,7 @@ const loginUser = async (req, res, next) => {
       maxAge: 360000,
     });
     res.status(200).json({
-      message: "user loged in successfully",
+      message: "user logged in successfully",
       user: {
         id: user._id,
         email: user.email,
@@ -78,7 +84,7 @@ const loginUser = async (req, res, next) => {
   } catch (error) {
     console.error("Error logging in user:", error);
     res.status(500).json({
-      message: "Something went wrong while loging in the user",
+      message: "Something went wrong while logging in the user",
     });
   }
 };
@@ -90,9 +96,28 @@ const logoutUser = (req, res, next) => {
     message: "user logged out successfully",
   });
 };
+const verifyUser = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token)
+    return res.status(401).json({
+      authenticated: false,
+    });
 
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    res.status(200).json({
+      authenticated: true,
+      user: decoded,
+    });
+  } catch (err) {
+    res.status(401).json({
+      authenticated: false,
+    });
+  }
+};
 module.exports = {
   registerUser,
   loginUser,
   logoutUser,
+  verifyUser,
 };
